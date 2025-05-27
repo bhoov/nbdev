@@ -1,0 +1,7 @@
+## A minimal notebook
+
+
+```{python}
+# Do some arithmetic
+1+1
+```
