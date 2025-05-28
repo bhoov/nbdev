@@ -18,107 +18,30 @@ from fastcore.imports import *
 from collections import defaultdict
 
 # %% ../nbs/api/03_process.ipynb
-import re
-import json
-from pathlib import Path
-from fastcore.utils import AttrDict
-
-# Assuming AttrDict is available from fastcore.utils or similar
-# If not, a regular dictionary can be used for the structure
-# from fastcore.utils import AttrDict
-
 def read_qmd(path):
     """Return notebook-like structure from a .qmd file"""
-    path = Path(path)
-    content = path.read_text(encoding='utf-8')
-
+    content = Path(path).read_text(encoding='utf-8')
+    # Code block markers split the .qmd content into cells
+    parts = re.split(r'^```\{[^}]*\}\s*$|^```\s*$', content, flags=re.MULTILINE)
     cells = []
-    current_cell_source = []
-    current_cell_type = 'markdown' # Start assuming markdown
+    for i, part in enumerate(parts):
+        if not part.strip(): continue
+        # Odd indices are code cells (between opening and closing ```)
+        cell_type = 'code' if i % 2 == 1 else 'markdown'
+        cell = { 'cell_type': cell_type, 'metadata': {}, 'source': part }
+        if cell_type == 'code': cell.update({'execution_count': None, 'outputs': []})
+        cells.append(cell)
 
-    # Regex to find fenced code blocks with language identifier
-    code_block_start_re = re.compile(r'^```{\s*(\w+)\s*}')
-    code_block_end_re = re.compile(r'^```\s*$')
-
-    in_code_block = False
-
-    # Iterate through lines to identify markdown and code cells
-    for line in content.splitlines(keepends=True):
-        code_match = code_block_start_re.match(line)
-        code_end_match = code_block_end_re.match(line)
-
-        if code_match:
-            # If we were in a markdown cell, save it first
-            if current_cell_source and current_cell_type == 'markdown':
-                cells.append({
-                    'cell_type': 'markdown',
-                    'metadata': {},
-                    'source': ''.join(current_cell_source)
-                })
-                current_cell_source = []
-
-            # Start a new code cell
-            current_cell_type = 'code'
-            in_code_block = True
-            # We skip the ````{language}` line itself in the cell source
-
-        elif code_end_match and in_code_block:
-            # End of a code block, save the code cell
-            if current_cell_source:
-                 # Remove the last line if it's just the closing fence ```
-                 # (splitlines(keepends=True) includes the newline)
-                 if current_cell_source[-1].strip() == '```':
-                     current_cell_source.pop()
-            cells.append({
-                'cell_type': 'code',
-                'execution_count': None, # .qmd files don't store execution count
-                'metadata': {}, # Metadata might be inferred later or added default
-                'outputs': [],     # .qmd files don't store outputs
-                'source': ''.join(current_cell_source)
-            })
-            current_cell_source = []
-            current_cell_type = 'markdown' # Next content is markdown
-            in_code_block = False
-
-        else:
-            # Add line to the current cell source
-            current_cell_source.append(line)
-
-    # Add any remaining markdown content as a cell
-    if current_cell_source and current_cell_type == 'markdown':
-         cells.append({
-             'cell_type': 'markdown',
-             'metadata': {},
-             'source': ''.join(current_cell_source)
-         })
-
-    # Construct the final notebook-like dictionary
-    # Use default values for nbformat and metadata that mimic ipynb
-    nb_obj = {
+    return dict2nb({
         'cells': cells,
         'metadata': {
-            'kernelspec': {
-                'display_name': 'Python 3', # Default, could try to infer from ```{lang}
-                'language': 'python',      # Default
-                'name': 'python3'          # Default
-            },
-            'language_info': { # Basic default language info
-                'name': 'python'
-            }
+            'kernelspec': {'display_name': 'Python 3', 'language': 'python', 'name': 'python3'},
+            'language_info': {'name': 'python'}
         },
         'nbformat': 4,
-        'nbformat_minor': 5, # Use a recent minor version
+        'nbformat_minor': 5,
         'path_': str(path)
-    }
-
-    # If AttrDict is desired, convert here:
-    return dict2nb(nb_obj)
-    # return nb_obj
-
-# Example Usage (assuming minimal.qmd is in a 'tests' directory relative to execution)
-# qmd_path = 'tests/minimal.qmd'
-# nb_like_object = read_qmd(qmd_path)
-# print(json.dumps(nb_like_object, indent=2)) # Print to see the structure
+    })
 
 # %% ../nbs/api/03_process.ipynb
 # from https://github.com/quarto-dev/quarto-cli/blob/main/src/resources/jupyter/notebook.py
