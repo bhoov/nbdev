@@ -123,8 +123,8 @@ def nbglob(path=None, skip_folder_re = '^[_.]', file_re=r'.*\.ipynb$|.*\.qmd$', 
     res = globtastic(path, file_re=file_re, skip_folder_re=skip_folder_re,
                      skip_file_re=skip_file_re, recursive=recursive, **kwargs)
     return res.map(Path) if as_path else res
+
 # %% ../nbs/api/05_doclinks.ipynb
-#|export
 def nbglob_cli(
     path:str=None, # Path to notebooks
     symlinks:bool=False, # Follow symlinks?
