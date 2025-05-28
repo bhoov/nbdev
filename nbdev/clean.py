@@ -128,6 +128,7 @@ def _nbdev_clean(nb, path=None, clear_all=None):
     if path: nbdev_trust.__wrapped__(path)
 
 # %% ../nbs/api/11_clean.ipynb
+#|export
 @call_parse
 def nbdev_clean(
     fname:str=None, # A notebook name or glob to clean
@@ -141,7 +142,7 @@ def nbdev_clean(
     _write = partial(process_write, warn_msg='Failed to clean notebook', proc_nb=_clean)
     if stdin: return _write(f_in=sys.stdin, f_out=sys.stdout)
     if fname is None: fname = get_config().nbs_path
-    for f in globtastic(fname, file_glob='*.ipynb', skip_folder_re='^[_.]'): _write(f_in=f, disp=disp)
+    for f in globtastic(fname, file_re=r'.*\.ipynb$|.*\.qmd$', skip_folder_re='^[_.]'): _write(f_in=f, disp=disp)
 
 # %% ../nbs/api/11_clean.ipynb
 def clean_jupyter(path, model, **kwargs):
