@@ -149,6 +149,7 @@ format:
     css: styles.css
     toc: true
     keep-md: true
+    keep-ipynb: true
   commonmark: default
 
 website:
@@ -205,6 +206,7 @@ def _pre_docs(path=None, n_workers:int=defaults.cpus, **kwargs):
     nbdev.doclinks._build_modidx()
     nbdev_sidebar.__wrapped__(path=path, **kwargs)
     cache = proc_nbs(path, n_workers=n_workers, **kwargs)
+    print("cache: ", cache)
     return cache,cfg,path
 
 # %% ../nbs/api/14_quarto.ipynb
@@ -264,7 +266,8 @@ def nbdev_readme(
 
     with _SidebarYmlRemoved(path): # to avoid rendering whole website
         cache = proc_nbs(path)
-        _sprun(f'cd "{cache}" && quarto render "{cache/cfg.readme_nb}" -o README.md -t gfm --no-execute')
+        readme_nb_name = Path(cfg.readme_nb).with_suffix('.ipynb')
+        _sprun(f'cd "{cache}" && quarto render "{cache/readme_nb_name}" -o README.md -t gfm --no-execute')
         
     _save_cached_readme(cache, cfg)
 
