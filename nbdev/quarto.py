@@ -130,7 +130,9 @@ def nbdev_sidebar(
         _dir = dir_struct
         for subdir in drel.parts:
             _dir = _dir.setdefault(subdir, dict())
-        _dir[name] = name
+        if Path(name).suffix == '.qmd': name = Path(name).with_suffix('.ipynb') # .qmd files are converted to .ipynb before docs are rendered
+        print("new name: ", name)
+        _dir[name] = str(name)
 
     _recursive_parser(dir_struct, _contents, Path())
     yml_path = path/'sidebar.yml'
