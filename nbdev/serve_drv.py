@@ -17,7 +17,6 @@ def exec_scr(src, dst, md):
     dst.write_text(res + f.getvalue())
     
 def exec_qmd(src, dst, cb):
-    print(f"Executing QMD-derived notebook: {src}")
     nb = read_qmd(src)
     k = CaptureShell()
     with working_directory(src.parent): k.run_all(nb, exc_stop=False, preproc=no_eval)
