@@ -14,7 +14,7 @@ title: Example Project (from YAML)
 
 With an executable print example:
 
-```{python}
+```{python .metadata thiskey=islost}
 #| echo: true 
 print(3+4)
 ```

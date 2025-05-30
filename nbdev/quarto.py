@@ -131,7 +131,6 @@ def nbdev_sidebar(
         for subdir in drel.parts:
             _dir = _dir.setdefault(subdir, dict())
         if Path(name).suffix == '.qmd': name = Path(name).with_suffix('.ipynb') # .qmd files are converted to .ipynb before docs are rendered
-        print("new name: ", name)
         _dir[name] = str(name)
 
     _recursive_parser(dir_struct, _contents, Path())
@@ -208,7 +207,6 @@ def _pre_docs(path=None, n_workers:int=defaults.cpus, **kwargs):
     nbdev.doclinks._build_modidx()
     nbdev_sidebar.__wrapped__(path=path, **kwargs)
     cache = proc_nbs(path, n_workers=n_workers, **kwargs)
-    print("cache: ", cache)
     return cache,cfg,path
 
 # %% ../nbs/api/14_quarto.ipynb
