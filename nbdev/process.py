@@ -19,51 +19,33 @@ from collections import defaultdict
 
 # %% ../nbs/api/03_process.ipynb
 def _qmd_to_raw_cell(source_str, cell_type_str):
-    """Helper to create a raw cell dictionary (like from a .ipynb JSON)."""
-    # Source is typically a list of strings in .ipynb, but a single string is also common.
-    # NbCell's set_source method handles both by doing ''.join(source).
-    # Here, we'll provide it as a single string, which is what re.split gives us.
-    cell = {
-        'cell_type': cell_type_str,
-        'metadata': {}, # Standard empty metadata
-        'source': source_str # Already stripped by the caller
-    }
+    """Create a default ipynb json cell"""
+    cell = {'cell_type': cell_type_str, 'metadata': {}, 'source': source_str}
     if cell_type_str == 'code':
-        cell['execution_count'] = None # In JSON, this is null
+        cell['execution_count'] = None
         cell['outputs'] = []
     return cell
 
 def read_qmd(path): # Renamed to clarify output
-    """
-    Reads a .qmd file and returns a notebook structure as a JSON-like dictionary,
-    compatible with execnb.nbio.dict2nb.
-    """
+    """Reads a .qmd file as an nb compatible with the rest of execnb and nbdev"""
     content = Path(path).read_text(encoding='utf-8')
     cell_pat = re.compile(r"^(`{3,})\s*\{python[^\n]*\}\s*(.*?)^\1\s*$", re.MULTILINE | re.DOTALL)
     
-    # parts will be [md_chunk, captured_backticks_1, captured_code_1, md_chunk_2, ...]
+    # `parts` will be [md_chunk, captured_backticks_1, captured_code_1, md_chunk_2, ...]
+    # We just care about md and code chunks
     parts = cell_pat.split(content)
     raw_cells = []
     
     # Handle the first markdown segment (before any code cells, or all content if no code cells)
     initial_md_source = parts[0].strip()
     if initial_md_source: raw_cells.append(_qmd_to_raw_cell(initial_md_source, 'markdown'))
-        
-    # Process subsequent parts: captured code (parts[i+1]) and following markdown (parts[i+2])
-    # Loop from the first captured group (backticks, at index 1) with a step of 3.
     for i in range(1, len(parts), 3):
-        # Code cell content is in parts[i+1] (second capture group)
         if i + 1 < len(parts):
             code_source = parts[i+1].strip()
-            # Only add non-empty code cells, though regex usually ensures content.
-            if code_source: 
-                raw_cells.append(_qmd_to_raw_cell(code_source, 'code'))
-        
-        # Markdown cell content following the code cell is in parts[i+2]
+            if code_source: raw_cells.append(_qmd_to_raw_cell(code_source, 'code'))
         if i + 2 < len(parts):
             intermediate_md_source = parts[i+2].strip()
-            if intermediate_md_source:
-                raw_cells.append(_qmd_to_raw_cell(intermediate_md_source, 'markdown'))
+            if intermediate_md_source: raw_cells.append(_qmd_to_raw_cell(intermediate_md_source, 'markdown'))
                 
     # Construct the final notebook dictionary
     notebook_dict = {

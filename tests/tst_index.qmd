@@ -1,20 +1,22 @@
 ---
-title: "HAMUX QMD"
+title: Example Project (from YAML)
 ---
 
-# HAMUX QMD
-> Energy formulation for deep learning
+
+# Example Project
+> Example project
+
 
 ```{python}
 #| echo: false
-# from hamux_qmd.core import *
+# from example_proj.core import *
 ```
 
-This is an insertion of another bit of markdown.
+With an executable print example:
 
-``` {python .code-cell-2}
-#| echo: true
-print(6+7)
+```{python}
+#| echo: true 
+print(3+4)
 ```
 
 This file will become your README and also the index of your documentation.
@@ -23,16 +25,16 @@ This file will become your README and also the index of your documentation.
 
 If you are new to using `nbdev` here are some useful pointers to get you started.
 
-### Install hamux_qmd in Development mode
+### Install example_proj in Development mode
 
 ```sh
-# make sure hamux_qmd package is installed in development mode
+# make sure example_proj package is installed in development mode
 $ pip install -e .
 
 # make changes under nbs/ directory
 # ...
 
-# compile to have changes apply to hamux_qmd
+# compile to have changes apply to example_proj
 $ nbdev_prepare
 ```
 
@@ -43,31 +45,26 @@ $ nbdev_prepare
 Install latest from the GitHub [repository][repo]:
 
 ```sh
-$ pip install git+https://github.com/bhoov/hamux_qmd.git
+$ pip install ...
 ```
 
 or from [conda][conda]
 
 ```sh
-$ conda install -c bhoov hamux_qmd
+$ conda install -c ...
 ```
 
 or from [pypi][pypi]
 
 
 ```sh
-$ pip install hamux_qmd
+$ pip install ...
 ```
-
-
-[repo]: https://github.com/bhoov/hamux_qmd
-[docs]: https://bhoov.github.io/hamux_qmd/
-[pypi]: https://pypi.org/project/hamux_qmd/
-[conda]: https://anaconda.org/bhoov/hamux_qmd
 
 ## How to use
 
 Fill me in please! Don't forget code examples:
+
 
 ```{python}
 1+1
