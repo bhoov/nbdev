@@ -28,7 +28,7 @@ def _fm2dict(s:str, nb=True):
     match = re_fm.search(s.strip())
     return yaml.safe_load(match.group(1)) if match else {}
 
-def _md2dict(s:str):
+def _md2dict(s:str, find_kv=True):
     "Convert H1 formatted markdown cell to frontmatter dict"
     if '#' not in s: return {}
     m = re.search(r'^#\s+(\S.*?)\s*$', s, flags=re.MULTILINE)
@@ -36,10 +36,11 @@ def _md2dict(s:str):
     res = {'title': m.group(1)}
     m = re.search(r'^>\s+(\S.*?)\s*$', s, flags=re.MULTILINE)
     if m: res['description'] = m.group(1)
-    r = re.findall(r'^-\s+(\S.*:.*\S)\s*$', s, flags=re.MULTILINE)
-    if r:
-        try: res.update(yaml.safe_load('\n'.join(r)))
-        except Exception as e: warn(f'Failed to create YAML dict for:\n{r}\n\n{e}\n')
+    if find_kv:
+        r = re.findall(r'^-\s+(\S.*:.*\S)\s*$', s, flags=re.MULTILINE)
+        if r:
+            try: res.update(yaml.safe_load('\n'.join(r)))
+            except Exception as e: warn(f'Failed to create YAML dict for:\n{r}\n\n{e}\n')
     return res
 
 # %% ../nbs/api/09_frontmatter.ipynb
@@ -62,7 +63,7 @@ class FrontmatterProc(Processor):
 
     def cell(self, cell):
         if cell.cell_type=='raw': self._update(_fm2dict, cell)
-        elif (cell.cell_type=='markdown' and 'title' not in self.fm and not self.is_qmd): self._update(_md2dict, cell)
+        elif (cell.cell_type=='markdown' and 'title' not in self.fm): self._update(partial(_md2dict, find_kv=not self.is_qmd), cell)
 
     def end(self):
         self.nb.frontmatter_ = self.fm
