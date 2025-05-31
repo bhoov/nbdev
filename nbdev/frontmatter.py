@@ -48,7 +48,9 @@ def _insertfm(nb, fm): nb.cells.insert(0, mk_cell(_dict2fm(fm), 'raw'))
 
 class FrontmatterProc(Processor):
     "A YAML and formatted-markdown frontmatter processor"
-    def begin(self): self.fm = getattr(self.nb, 'frontmatter_', {})
+    def begin(self): 
+        self.fm = getattr(self.nb, 'frontmatter_', {})
+        self.is_qmd = hasattr(self.nb, 'path_') and Path(self.nb.path_).suffix == '.qmd'
 
     def _update(self, f, cell):
         s = cell.get('source')
@@ -60,7 +62,7 @@ class FrontmatterProc(Processor):
 
     def cell(self, cell):
         if cell.cell_type=='raw': self._update(_fm2dict, cell)
-        elif cell.cell_type=='markdown' and 'title' not in self.fm: self._update(_md2dict, cell)
+        elif (cell.cell_type=='markdown' and 'title' not in self.fm and not self.is_qmd): self._update(_md2dict, cell)
 
     def end(self):
         self.nb.frontmatter_ = self.fm
