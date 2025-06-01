@@ -22,6 +22,9 @@ _RE_FM_BASE=r'''^---\s*
 _re_fm_nb = re.compile(_RE_FM_BASE+'$', flags=re.DOTALL)
 _re_fm_md = re.compile(_RE_FM_BASE, flags=re.DOTALL)
 
+_RE_FM_AND_MD = r'^#\s+(\S.*?)\s*\n(?:\s*\n)*(?:>\s+(\S.*?)\s*\n(?:\s*\n)*((?:^\s*-\s+\S.*:.*\S\s*\n?)*))?\s*(.*?)$'
+_re_fm_and_md = re.compile(_RE_FM_AND_MD, flags=re.MULTILINE | re.DOTALL)
+
 def _fm2dict(s:str, nb=True):
     "Load YAML frontmatter into a `dict`"
     re_fm = _re_fm_nb if nb else _re_fm_md
@@ -32,8 +35,7 @@ def _md2dict(s:str):
     "Convert H1 formatted markdown cell to frontmatter dict"
     if '#' not in s: return {}
     # Captures frontmatter and any remaining content
-    pattern = r'^#\s+(\S.*?)\s*\n(?:\s*\n)*(?:>\s+(\S.*?)\s*\n(?:\s*\n)*((?:^\s*-\s+\S.*:.*\S\s*\n?)*))?\s*(.*?)$'
-    match = re.search(pattern, s.strip(), flags=re.MULTILINE | re.DOTALL)
+    match = _re_fm_and_md.search(s.strip())
     if not match: return {}
     res = {'title': match.group(1)}
     if match.group(2): res['description'] = match.group(2)
@@ -70,15 +72,6 @@ class FrontmatterProc(Processor):
             cell_idx = self.nb.cells.index(cell)
             self.nb.cells.insert(cell_idx + 1, new_cell)
         cell.source = None
-
-
-    # def _update(self, f, cell):
-    #     s = cell.get('source')
-    #     if not s: return
-    #     d = f(s)
-    #     if not d: return
-    #     self.fm.update(d)
-    #     if self.is_qmd: cell.source = None
 
     def cell(self, cell):
         if cell.cell_type=='raw': self._update(_fm2dict, cell)
