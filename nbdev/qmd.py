@@ -74,15 +74,30 @@ def read_nb_or_qmd(path):
 
 
 # %% ../nbs/api/15_qmd.ipynb
+def _get_fence_ticks(source):
+    """Determine the number of backticks needed for fencing that won't conflict with source"""
+    if '`' not in source: return '```'  # Default to 3 if no backticks in source
+    
+    # Find all sequences of consecutive backticks
+    import re
+    backtick_sequences = re.findall(r'^`{3,}\s*$', source, flags=re.MULTILINE)
+    if not backtick_sequences: return '```'
+    used_lengths = set(len(s) for s in backtick_sequences)
+    # Find first integer >= 3 that's not in used_lengths
+    num_ticks = 3
+    while num_ticks in used_lengths: num_ticks += 1
+    return '`' * num_ticks
+
 def _nb_to_qmd_str(nb):
     """Convert a notebook to a string in .qmd format"""
     def cell_to_qmd(cell):
         source = cell.source.rstrip('\n')
         if cell.cell_type in ['markdown', 'raw']: return source
         elif cell.cell_type == 'code':
+            fence_ticks = _get_fence_ticks(source)
             qmd_metadata = getattr(cell, 'qmd_metadata', None)
             if qmd_metadata: return f'```{{python{qmd_metadata}}}\n{source}\n```'
-            else: return f'```{{python}}\n{source}\n```'
+            else: return f'{fence_ticks}{{python}}\n{source}\n{fence_ticks}'
         return ''
     return '\n\n'.join(filter(None, [cell_to_qmd(cell) for cell in nb.cells]))
 
