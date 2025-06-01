@@ -22,7 +22,7 @@ _RE_FM_BASE=r'''^---\s*
 _re_fm_nb = re.compile(_RE_FM_BASE+'$', flags=re.DOTALL)
 _re_fm_md = re.compile(_RE_FM_BASE, flags=re.DOTALL)
 
-_RE_FM_AND_MD = r'^#\s+(\S.*?)\s*\n(?:\s*\n)*(?:>\s+(\S.*?)\s*\n(?:\s*\n)*((?:^\s*-\s+\S.*:.*\S\s*\n?)*))?\s*(.*?)$'
+_RE_FM_AND_MD = r'^#\s+(\S.*?)\s*\n(?:\s*\n)*(?:>\s+(\S.*?)\s*\n(?:\s*\n)*((?:^\s*-\s+[a-zA-Z_][a-zA-Z0-9_]*\s*:\s+.*\s*\n?)*))?\s*(.*?)$'
 _re_fm_and_md = re.compile(_RE_FM_AND_MD, flags=re.MULTILINE | re.DOTALL)
 
 def _fm2dict(s:str, nb=True):
@@ -40,7 +40,7 @@ def _md2dict(s:str):
     res = {'title': match.group(1)}
     if match.group(2): res['description'] = match.group(2)
     if match.group(3):
-        kv_lines = re.findall(r'^-\s+(\S.*:.*\S)\s*$', match.group(3), flags=re.MULTILINE)
+        kv_lines = re.findall(r'^-\s+([a-zA-Z_][a-zA-Z0-9_]*\s*:\s+.*)\s*$', match.group(3), flags=re.MULTILINE)
         if kv_lines:
             try: res.update(yaml.safe_load('\n'.join(kv_lines)))
             except Exception as e: warn(f'Failed to create YAML dict for:\n{kv_lines}\n\n{e}\n')
