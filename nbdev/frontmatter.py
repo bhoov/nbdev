@@ -28,19 +28,24 @@ def _fm2dict(s:str, nb=True):
     match = re_fm.search(s.strip())
     return yaml.safe_load(match.group(1)) if match else {}
 
-def _md2dict(s:str, find_kv=True):
+def _md2dict(s:str):
     "Convert H1 formatted markdown cell to frontmatter dict"
     if '#' not in s: return {}
-    m = re.search(r'^#\s+(\S.*?)\s*$', s, flags=re.MULTILINE)
-    if not m: return {}
-    res = {'title': m.group(1)}
-    m = re.search(r'^>\s+(\S.*?)\s*$', s, flags=re.MULTILINE)
-    if m: res['description'] = m.group(1)
-    if find_kv:
-        r = re.findall(r'^-\s+(\S.*:.*\S)\s*$', s, flags=re.MULTILINE)
-        if r:
-            try: res.update(yaml.safe_load('\n'.join(r)))
-            except Exception as e: warn(f'Failed to create YAML dict for:\n{r}\n\n{e}\n')
+    # Captures frontmatter and any remaining content
+    pattern = r'^#\s+(\S.*?)\s*\n(?:\s*\n)*(?:>\s+(\S.*?)\s*\n(?:\s*\n)*((?:^\s*-\s+\S.*:.*\S\s*\n?)*))?\s*(.*?)$'
+    match = re.search(pattern, s.strip(), flags=re.MULTILINE | re.DOTALL)
+    if not match: return {}
+    res = {'title': match.group(1)}
+    if match.group(2): res['description'] = match.group(2)
+    if match.group(3):
+        kv_lines = re.findall(r'^-\s+(\S.*:.*\S)\s*$', match.group(3), flags=re.MULTILINE)
+        if kv_lines:
+            try: res.update(yaml.safe_load('\n'.join(kv_lines)))
+            except Exception as e: warn(f'Failed to create YAML dict for:\n{kv_lines}\n\n{e}\n')
+    
+    # Add remaining content if present
+    remaining = match.group(4).strip()
+    if remaining: res['__remaining'] = remaining
     return res
 
 # %% ../nbs/api/09_frontmatter.ipynb
@@ -52,18 +57,32 @@ class FrontmatterProc(Processor):
     def begin(self): 
         self.fm = getattr(self.nb, 'frontmatter_', {})
         self.is_qmd = hasattr(self.nb, 'path_') and Path(self.nb.path_).suffix == '.qmd'
-
+        
     def _update(self, f, cell):
         s = cell.get('source')
         if not s: return
         d = f(s)
         if not d: return
+        remaining = d.pop('__remaining', None)
         self.fm.update(d)
+        if remaining:
+            new_cell = mk_cell(remaining, 'markdown')
+            cell_idx = self.nb.cells.index(cell)
+            self.nb.cells.insert(cell_idx + 1, new_cell)
         cell.source = None
+
+
+    # def _update(self, f, cell):
+    #     s = cell.get('source')
+    #     if not s: return
+    #     d = f(s)
+    #     if not d: return
+    #     self.fm.update(d)
+    #     if self.is_qmd: cell.source = None
 
     def cell(self, cell):
         if cell.cell_type=='raw': self._update(_fm2dict, cell)
-        elif (cell.cell_type=='markdown' and 'title' not in self.fm): self._update(partial(_md2dict, find_kv=not self.is_qmd), cell)
+        elif (cell.cell_type=='markdown' and 'title' not in self.fm): self._update(_md2dict, cell)
 
     def end(self):
         self.nb.frontmatter_ = self.fm
