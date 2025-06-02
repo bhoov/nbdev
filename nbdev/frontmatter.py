@@ -23,7 +23,7 @@ _re_fm_nb = re.compile(_RE_FM_BASE+'$', flags=re.DOTALL)
 _re_fm_md = re.compile(_RE_FM_BASE, flags=re.DOTALL)
 
 _re_fm_title_desc = re.compile(r'^#\s+(\S.*?)(?:\n|$)(?:\s*\n)*(?:>\s+(\S.*?)(?:\n|$)(?:\s*\n)*)?', flags=re.MULTILINE)
-_re_fm_kv = re.compile(r'^((?:\s*-\s+[a-zA-Z_][a-zA-Z0-9_]*\s*:\s+.*(?:\n|$)|\s*\n)*)', flags=re.MULTILINE)
+_re_fm_kv = re.compile(r'^((?:\s*-\s+[a-zA-Z_][a-zA-Z0-9_-]*\s*:\s+.*(?:\n|$)|\s*\n)*)', flags=re.MULTILINE)
 
 def _parse_kv_block(block_text):
     """Parse a block of key-value pairs from lines starting with '-'"""
