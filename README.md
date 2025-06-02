@@ -79,10 +79,12 @@ available commands:
 !nbdev_help
 ```
 
+    nb_export                 Export a single nbdev notebook to a python script.
     nbdev_bump_version        Increment version in settings.ini by one
     nbdev_changelog           Create a CHANGELOG.md file from closed and labeled GitHub issues
     nbdev_clean               Clean all notebooks in `fname` to avoid merge conflicts
     nbdev_conda               Create a `meta.yaml` file ready to be built into a package, and optionally build and upload it
+    nbdev_contributing        Create CONTRIBUTING.md from contributing_nb (defaults to 'contributing.ipynb' if present). Skips if the file doesn't exist.
     nbdev_create_config       Create a config file.
     nbdev_docs                Create Quarto docs and README.md
     nbdev_export              Export notebooks in `path` to Python modules
@@ -92,6 +94,18 @@ available commands:
     nbdev_install             Install Quarto and the current library
     nbdev_install_hooks       Install Jupyter and git hooks to automatically clean, trust, and fix merge conflicts in notebooks
     nbdev_install_quarto      Install latest Quarto on macOS or Linux, prints instructions for Windows
+    nbdev_ipynb_to_qmd        
+        Converts .ipynb files from source_folder to .qmd files in dest_folder.
+        Other files are copied directly. Replicates directory structure.
+        
+        Warning, you will need to manually check the generated .qmd files for:
+        1. **Code blocks that contain 3 backticks**. 
+            All code blocks are exported using 3 backticks. Any codeblocks with python strings containing 3 consecutive backticks will break. 
+            Manually change the code fences to use 4+ backticks if you need to include 3 consecutive backticks in a code block.
+            
+        2. **Frontmatter encoded using lists of KV pairs**. 
+            This is not supported in .qmd files. You will need to manually add the frontmatter to the .qmd files in the standard frontmatter format.
+        
     nbdev_merge               Git merge driver for notebooks
     nbdev_migrate             Convert all markdown and notebook files in `path` from v1 to v2
     nbdev_new                 Create an nbdev project.
@@ -109,6 +123,7 @@ available commands:
     nbdev_trust               Trust notebooks matching `fname`
     nbdev_update              Propagate change in modules matching `fname` to notebooks that created them
     nbdev_update_license      Allows you to update the license of your project.
+    watch_export              Use `nb_export` on ipynb files in `nbs` directory on changes using nbdev config if available
 
 ## FAQ
 
