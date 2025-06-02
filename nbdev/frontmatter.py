@@ -22,32 +22,20 @@ _RE_FM_BASE=r'''^---\s*
 _re_fm_nb = re.compile(_RE_FM_BASE+'$', flags=re.DOTALL)
 _re_fm_md = re.compile(_RE_FM_BASE, flags=re.DOTALL)
 
-
-# Regex 1: Capture title and description only
 _re_fm_title_desc = re.compile(r'^#\s+(\S.*?)(?:\n|$)(?:\s*\n)*(?:>\s+(\S.*?)(?:\n|$)(?:\s*\n)*)?', flags=re.MULTILINE)
-
-# Regex 2: Capture contiguous KV block (lines starting with - or blank lines)
 _re_fm_kv = re.compile(r'^((?:\s*-\s+[a-zA-Z_][a-zA-Z0-9_]*\s*:\s+.*(?:\n|$)|\s*\n)*)', flags=re.MULTILINE)
 
 def _parse_kv_block(block_text):
     """Parse a block of key-value pairs from lines starting with '-'"""
-    if not block_text.strip():
-        return {}
-    
-    # Extract only the lines that start with '-' (ignore blank lines)
+    if not block_text.strip(): return {}
     kv_lines = []
     for line in block_text.split('\n'):
         line = line.strip()
         if line.startswith('-'):
             kv_content = line[1:].strip()  # Remove the '-' and strip whitespace
-            if kv_content:
-                kv_lines.append(kv_content)
-    
-    if not kv_lines:
-        return {}
-    
-    try:
-        return yaml.safe_load('\n'.join(kv_lines))
+            if kv_content: kv_lines.append(kv_content)
+    if not kv_lines: return {}
+    try: return yaml.safe_load('\n'.join(kv_lines))
     except Exception as e:
         warn(f'Failed to create YAML dict for:\n{kv_lines}\n\n{e}\n')
         return {}
@@ -55,22 +43,17 @@ def _parse_kv_block(block_text):
 def _md2dict(s:str):
     "Convert H1 formatted markdown cell to frontmatter dict"
     if '#' not in s: return {}
-    
     res = {}
     remaining_start = 0
     
-    # Step 1: Extract title and description
+    # Extract title and description
     title_desc_match = _re_fm_title_desc.match(s)
-    if not title_desc_match:
-        return {}
-    
+    if not title_desc_match: return {}
     res['title'] = title_desc_match.group(1)
-    if title_desc_match.group(2):
-        res['description'] = title_desc_match.group(2)
-    
+    if title_desc_match.group(2): res['description'] = title_desc_match.group(2)
     remaining_start = title_desc_match.end()
     
-    # Step 2: Extract KV pairs starting from where title/desc ended
+    # Extract KV pairs starting from where title/desc ended
     kv_text = s[remaining_start:]
     kv_match = _re_fm_kv.match(kv_text)
     if kv_match:
@@ -78,12 +61,9 @@ def _md2dict(s:str):
         res.update(kv_dict)
         remaining_start += kv_match.end()
     
-    # Step 3: Everything else is remaining content
+    # Extract remaining content
     remaining = s[remaining_start:].strip()
-    if remaining:
-        # print("REMAINING ", remaining)
-        # print("Total string", s)
-        res['__remaining'] = remaining
+    if remaining: res['__remaining'] = remaining
     
     return res
 
