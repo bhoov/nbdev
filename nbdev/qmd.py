@@ -20,22 +20,20 @@ __all__ = ['read_qmd', 'read_nb_or_qmd', 'write_qmd', 'write_nb_or_qmd', 'meta',
            'ipynb_to_qmd']
 
 # %% ../nbs/api/15_qmd.ipynb
-def _qmd_to_raw_cell(source_str, cell_type_str, qmd_metadata=None):
+def _qmd_to_raw_cell(source:str, cell_type:str, qmd_metadata=None):
     """Create a default ipynb json cell"""
-    cell = {'cell_type': cell_type_str, 'metadata': {}, 'source': source_str}
-    if cell_type_str == 'code':
+    cell = {'cell_type': cell_type, 'metadata': {}, 'source': source}
+    if cell_type == 'code':
         cell['execution_count'] = None
         cell['outputs'] = []
         if qmd_metadata: cell['qmd_metadata'] = qmd_metadata
     return cell
 
-def read_qmd(path): 
+def read_qmd(path:str): 
     """Reads a .qmd file as an nb compatible with the rest of execnb and nbdev"""
     content = Path(path).read_text(encoding='utf-8')
-    # Modified regex to capture the metadata between {python and }
     cell_pat = re.compile(r"^(`{3,})\s*\{python([^\}]*)\}\s*\n(.*?)^\1\s*$", re.MULTILINE | re.DOTALL)
     
-    # `parts` will be [md_chunk, captured_backticks_1, captured_metadata_1, captured_code_1, md_chunk_2, ...]
     parts = cell_pat.split(content)
     raw_cells = []
     
@@ -45,11 +43,11 @@ def read_qmd(path):
     
     # 4 items per match: [md, backticks, metadata?, code]
     for i in range(1, len(parts), 4):
-        if i + 2 < len(parts):  # We have backticks, metadata, and code
+        if i + 2 < len(parts):  # backticks, metadata, code
             metadata = parts[i+1]  # The captured metadata
             code_source = parts[i+2].strip()  # The captured code
             if code_source: raw_cells.append(_qmd_to_raw_cell(code_source, 'code', metadata if metadata else None))
-        if i + 3 < len(parts):  # Intermediate markdown
+        if i + 3 < len(parts):  # intermediate markdown
             intermediate_md_source = parts[i+3].strip()
             if intermediate_md_source: raw_cells.append(_qmd_to_raw_cell(intermediate_md_source, 'markdown'))
                 
@@ -68,13 +66,13 @@ def read_qmd(path):
     
     return dict2nb(notebook_dict)
 
-def read_nb_or_qmd(path):
+def read_nb_or_qmd(path:str):
     if Path(path).suffix == '.qmd': return read_qmd(path)
     return read_nb(path)
 
 
 # %% ../nbs/api/15_qmd.ipynb
-def _get_fence_ticks(source):
+def _get_fence_ticks(source:str):
     """Determine the number of backticks needed for fencing that won't conflict with source"""
     if '`' not in source: return '```'  # Default to 3 if no backticks in source
     
@@ -88,7 +86,7 @@ def _get_fence_ticks(source):
     while num_ticks in used_lengths: num_ticks += 1
     return '`' * num_ticks
 
-def _nb_to_qmd_str(nb):
+def _nb_to_qmd_str(nb: AttrDict):
     """Convert a notebook to a string in .qmd format"""
     def cell_to_qmd(cell):
         source = cell.source.rstrip('\n')
@@ -101,12 +99,12 @@ def _nb_to_qmd_str(nb):
         return ''
     return '\n\n'.join(filter(None, [cell_to_qmd(cell) for cell in nb.cells]))
 
-def write_qmd(nb, path):
+def write_qmd(nb: AttrDict, path:str):
     """Write a notebook back to .qmd format"""
     qmd_str = _nb_to_qmd_str(nb)
     Path(path).write_text(qmd_str, encoding='utf-8')
     
-def write_nb_or_qmd(nb, path):
+def write_nb_or_qmd(nb: AttrDict, path:str):
     if Path(path).suffix == '.qmd': write_qmd(nb, path)
     else: write_nb(nb, path)
 

@@ -25,7 +25,7 @@ _re_fm_md = re.compile(_RE_FM_BASE, flags=re.DOTALL)
 _re_fm_title_desc = re.compile(r'^#\s+(\S.*?)(?:\n|$)(?:\s*\n)*(?:>\s+(\S.*?)(?:\n|$)(?:\s*\n)*)?', flags=re.MULTILINE)
 _re_fm_kv = re.compile(r'^((?:\s*-\s+[a-zA-Z_][a-zA-Z0-9_-]*\s*:\s+.*(?:\n|$)|\s*\n)*)', flags=re.MULTILINE)
 
-def _parse_kv_block(block_text):
+def _parse_kv_block(block_text: str):
     """Parse a block of key-value pairs from lines starting with '-'"""
     if not block_text.strip(): return {}
     kv_lines = []
@@ -41,7 +41,7 @@ def _parse_kv_block(block_text):
         return {}
 
 def _md2dict(s:str):
-    "Convert H1 formatted markdown cell to frontmatter dict"
+    "Convert custom H1 formatted markdown cell to frontmatter dict"
     if '#' not in s: return {}
     res = {}
     remaining_start = 0
