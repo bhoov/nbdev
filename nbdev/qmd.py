@@ -193,18 +193,7 @@ def ipynb_to_qmd(
     source_folder: str,  # Source folder containing .ipynb files
     dest_folder: str  # Destination folder for .qmd files and copied items
 ):
-    """
-    Converts .ipynb files from source_folder to .qmd files in dest_folder.
-    Other files are copied directly. Replicates directory structure.
-    
-    Warning, you will need to manually check the generated .qmd files for:
-    1. **Code blocks that contain 3 backticks**. 
-        All code blocks are exported using 3 backticks. Any codeblocks with python strings containing 3 consecutive backticks will break. 
-        Manually change the code fences to use 4+ backticks if you need to include 3 consecutive backticks in a code block.
-        
-    2. **Frontmatter encoded using lists of KV pairs**. 
-        This is not supported in .qmd files. You will need to manually add the frontmatter to the .qmd files in the standard frontmatter format.
-    """
+    "Converts .ipynb files from source_folder to .qmd files in dest_folder. Other files are copied directly."
     source_dir = Path(source_folder)
     dest_dir = Path(dest_folder)
 
