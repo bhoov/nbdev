@@ -1,0 +1,38 @@
+# Settings.ini
+
+> The nbdev configuration file
+- order: 1
+
+```{python}
+#| hide
+from fastcore.utils import *
+from nbdev.config import *
+
+from nbdev.showdoc import *
+```
+
+All of nbdev's configuration is done through a file called `settings.ini` which lives in the root of your repo. It's in [ConfigParser](https://docs.python.org/3/library/configparser.html) format. For example, here's the first few lines of nbdev's settings.ini file
+
+```{python}
+#| exec_doc
+#| echo: false
+!head ../../settings.ini
+```
+
+You can create this file with `nbdev_create_config` (in which case you pass the settings manually), or with `nbdev_new` (which sets it up automatically for you from your repo settings). Here are all of nbdev's settings (excluding the `path` and `cfg_name` parameters which decide where the config file is saved):
+
+```{python}
+#| exec_doc
+#| echo: false
+DocmentTbl(nbdev_create_config)
+```
+
+You can customise nbdev for all repositories for your user with a `~/.config/nbdev/settings.ini` file.
+
+In order for Git actions to run smoothly, add `requirements` and `dev_requirements` with required packages in `settings.ini`.
+
+see [here](https://github.com/fastai/nbdev/blob/master/settings.ini) as a reference.
+
+```{python}
+
+```

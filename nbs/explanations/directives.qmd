@@ -1,0 +1,357 @@
+```{python}
+#|hide
+from fastcore.test import *
+from nbdev.showdoc import show_doc
+```
+
+# Directives
+
+> A cheat sheet of directives available in nbdev.
+- order: 2
+- callout-appearance: simple
+- toc-depth: 2
+
+Directives are special comments that are preceded by `#|` that control:
+
+1. Cell visibility in rendered documentation
+2. How source code is generated from notebook cells
+3. Execution of cells for tests and docs
+
+nbdev augments [Quarto](https://quarto.org/) by providing additional directives than what are available in Quarto.  [All Quarto directives](https://quarto.org/docs/reference/cells/cells-jupyter.html) can be used in nbdev notebooks.  
+
+This cheat sheet lists all nbdev directives in addition to some Quarto directives we believe are important.  We recommend consulting the [quarto docs](https://quarto.org/docs/reference/cells/cells-jupyter.html) to see all of the directives available to you.
+
+To clarify the origin of directives we use the following emojis:
+
+- 📓 for nbdev-only directives .
+- 🔵 for Quarto directives (which also work in nbdev).
+
+## Cell Visibility
+
+The following directives control cell visibility in rendered documentation:
+
+### 📓 `#|hide`  
+
+Hide cell input and output. 
+
+::: {.callout-note collapse="true"}
+
+##### Example
+
+The following will result in the contents of the cell and it's output from being hidden:
+
+```python
+#|hide
+print('you will not see this')
+```
+
+Note that using `#|hide` is equivalent to using the Quarto directive `#|include: false`:
+
+```python
+#|include: false
+print('you will not see this')
+```
+
+See the quarto docs for more information about `#|include`.
+
+:::
+
+### 🔵 `#|echo: <true|false>`
+
+Toggle the visibility of code-cell inputs.
+
+::: {.callout-note collapse="true"}
+
+##### Example
+
+```python
+#|echo: false
+print('you can see the output but not the code!')
+```
+
+    
+which results in:
+    
+    
+```
+you can see the output but not the code!
+```
+    
+:::
+
+### 🔵 `#|output: <true|false|asis>`
+
+Setting this to `false` hides the output of a cell. Setting this to `asis` renders the output as raw markdown.
+
+::: {.callout-note collapse="true"}
+
+##### Example
+  
+The following cell will not display any output:
+
+```python
+#|output: false
+1 + 1
+```
+    
+The following cell with `#|output: asis` will produce the output `hello fastai` rendered as markdown instead of a string:  
+    
+```python    
+#|output: asis
+print("`hello fastai`")
+```         
+:::
+
+### 📓 `#|hide_line`
+
+Hide a specific line of code in an input cell.  
+
+::: {.callout-note collapse="true"}
+
+##### Example
+
+```python
+def _secret(): ...
+
+for i in range(3):
+    _secret() #|hide_line
+    print(i)
+```
+
+becomes this:
+
+```{python}
+def _secret(): ...
+
+for i in range(3):
+    _secret() #|hide_line
+    print(i)
+```
+
+:::
+
+### 📓 `#|filter_stream <keyword> ...`
+
+Filter lines containing specific keywords in cell outputs.  
+
+::: {.callout-note collapse="true"}
+
+##### Example
+
+
+```python
+#|filter_stream FutureWarning MultiIndex
+print('\n'.join(['A line', 'Foobar baz FutureWarning blah', 
+                 'zig zagMultiIndex zoom', 'Another line.']))
+```
+
+will output this:
+
+```{python}
+#|echo: false
+#|filter_stream FutureWarning MultiIndex
+print('\n'.join(['A line', 'Foobar baz FutureWarning blah', 
+                 'zig zagMultiIndex zoom', 'Another line.']))
+```
+
+:::
+
+### 🔵 `#|code-fold: <show|true>`
+
+The `#|code-fold` directive allows you to collapse code cells. When set to `true`, the element is collapsed by default, when set to show `show` the element is shown by default.
+
+::: {.callout-note collapse="true"}
+
+##### Example
+
+When you set `#|code-fold: true`, the input cell is collapsed:
+
+```{python}
+#|code-fold: true
+
+print('this is')
+print('output')
+print('that takes')
+print('lots of vertical space')
+```
+
+When you set `#|code-fold: show` the input cell is shown but still in a collapsible element:
+
+```{python}
+#|code-fold: show
+
+print('this is')
+print('output')
+print('that takes')
+print('lots of vertical space')
+```
+
+:::
+
+## Generating Source Code
+
+The following directives control how source code is exported from code cells.
+
+### 📓 `#|default_exp <name>`
+
+Names the module where cells with the `#|export` directive will be exported to by default.
+
+::: {.callout-note collapse="true"}
+
+##### Example
+
+```python
+#| default_exp baz
+
+# In a new notebook cell:
+
+#| export
+def my_function(): pass
+```
+
+If our package is named: `bitsnbytes` then we can do:
+
+```python
+from bitsnbytes.baz import my_function
+```
+
+You can define the package name by using `lib_name` in `settings.ini`.
+
+:::
+
+### 📓 `#|export`
+
+Exports the items in the cell into the generated module and documentation. 
+
+::: {.callout-note collapse="true"}
+
+##### Example
+
+```python
+#|export
+def say_hello(to:str # name of person to say hello to
+             ):
+    "Say hello to somebody"
+    return f'Hello {to}!'
+```
+
+The above cell will get exported to the module specified by `#|default_exp`. These exports are automatically included in [`__all__`](https://docs.python.org/3/tutorial/modules.html#importing-from-a-package) for the module. To learn how export without inclusion in `__all__`, see the `#|exporti` directive.
+
+Furthermore, the documentation for this function will automatically be rendered like this:
+
+```{python}
+#|exec_doc
+#|echo: false
+def say_hello(to:str # name of person to say hello to
+             ):
+    "Say hello to somebody"
+    return f'Hello {to}!'
+```
+
+```{python}
+#|echo: false
+# Note: we are using show_doc like this to simulate the effect of #|export without using export
+show_doc(say_hello)
+```
+
+The docs are generated from this export using `show_doc`. See [these docs](docs.ipynb#how-show_doc-works) for a detailed discussion of `show_doc`.
+
+:::
+
+### 📓 `#|exporti`
+
+An `i`nternal export. [Not included in `__all__`](https://docs.python.org/3/tutorial/modules.html#importing-from-a-package) or the docs. Useful for a function that is called by other functions in this module but is not part of the public API.  
+
+Equivalently, you can prefix your function or method with `_` e.g. `def _private(): pass`.
+
+### 📓 `#|exports`
+
+A `s`ource export. Like `#|export` but in addition to showing docs via `showdoc.show_doc`, it also shows the source code.
+
+
+::: {.callout-note collapse="true"}
+
+##### Example
+
+```python
+#|exports
+def say_hello(to):
+    "Say hello to somebody"
+    return f'Hello {to}!'
+```
+
+this will produce the following output:
+
+```{python}
+#|exec_doc
+#|echo: true
+def say_hello(to):
+    "Say hello to somebody"
+    return f'Hello {to}!'
+```
+
+```{python}
+#|echo: false
+show_doc(say_hello)
+```
+
+:::
+
+## Cell Execution
+
+The following directives allow you to control how cells are executed during docs rendering and testing.
+
+### 📓 `#|exec_doc`
+
+Ensures that a cell is executed each time before generating docs. When a cell does not have this annotation, it is run according to the default rules [described here](https://nbdev.fast.ai/explanations/docs.html). 
+
+::: {.callout-note collapse="true"}
+
+##### Example
+
+```{python}
+#|hide
+import datetime
+```
+
+```{python}
+datetime.datetime.now()
+```
+
+However with the annotation:
+```python
+#|exec_doc
+datetime.datetime.now()
+```
+
+we can see that the time has been updated:
+
+```{python}
+#|exec_doc
+datetime.datetime.now()
+```
+
+:::
+
+### 🔵 `#|eval: <true|false>`
+
+When set to `false`, the cell is ignored during testing.
+
+::: {.callout-note collapse="true"}
+
+##### Example
+
+```python
+#|eval: false
+raise Exception("I'm not raised because I'm not run")
+```
+
+:::
+
+### Cell execution when there is no directive
+
+When a cell has no directives, cells are run by nbdev according to the behavior [described here](docs.ipynb#automatic-cell-execution).
+
+```{python}
+
+```

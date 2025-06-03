@@ -1,0 +1,227 @@
+```{python}
+#|hide
+#|default_exp export
+```
+
+# export
+> Exporting a notebook to a library
+- order: 4
+
+```{python}
+#|export
+from nbdev.config import *
+from nbdev.maker import *
+from nbdev.imports import *
+from nbdev.process import *
+
+from fastcore.script import *
+from fastcore.basics import *
+from fastcore.imports import *
+from fastcore.meta import *
+
+from collections import defaultdict
+```
+
+```{python}
+#|hide
+from fastcore.test import *
+from pdb import set_trace
+from importlib import reload
+from fastcore import shutil
+from execnb.nbio import read_nb
+```
+
+```{python}
+#|export
+class ExportModuleProc:
+    "A processor which exports code to a module"
+    def begin(self): self.modules,self.in_all = defaultdict(L),defaultdict(L)
+    def _default_exp_(self, cell, exp_to): self.default_exp = exp_to
+    def _exporti_(self, cell, exp_to=None): self.modules[ifnone(exp_to, '#')].append(cell)
+    def _export_(self, cell, exp_to=None):
+        self._exporti_(cell, exp_to)
+        self.in_all[ifnone(exp_to, '#')].append(cell)
+    def __call__(self, cell):
+        src = cell.source
+        if not src: return
+        if cell.cell_type=='markdown' and src.startswith('# '): self.modules['#'].append(cell)
+    _exports_=_export_
+```
+
+Specify `dest` where the module(s) will be exported to, and optionally a class to use to create the module (`ModuleMaker`, by default).
+
+Exported cells are stored in a `dict` called `modules`, where the keys are the modules exported to. Those without an explicit module are stored in the `'#'` key, which will be exported to `default_exp`.
+
+```{python}
+everything_fn = '../../tests/01_everything.ipynb'
+
+exp = ExportModuleProc()
+proc = NBProcessor(everything_fn, exp)
+proc.process()
+test_eq(exp.default_exp, 'everything')
+assert 'print_function'  in exp.modules['#'][1].source
+assert 'h_n' in exp.in_all['some.thing'][0].source
+```
+
+### Optional export processors
+
+```{python}
+#|export
+def black_format(cell, # Cell to format
+                 force=False): # Turn black formatting on regardless of settings.ini
+    "Processor to format code with `black`"
+    try: cfg = get_config()
+    except FileNotFoundError: return
+    if (not cfg.black_formatting and not force) or cell.cell_type != 'code': return
+    try: import black
+    except: raise ImportError("You must install black: `pip install black` if you wish to use black formatting with nbdev")
+    else:
+        _format_str = partial(black.format_str, mode = black.Mode())
+        try: cell.source = _format_str(cell.source).strip()
+        except: pass
+```
+
+```{python}
+_cell = read_nb('../../tests/export_procs.ipynb')['cells'][0]
+black_format(_cell, force=True)
+test_eq(_cell.source, 'j = [1, 2, 3]')
+```
+
+```{python}
+#|export
+# includes the newline, because calling .strip() would affect all cells.
+_magics_pattern = re.compile(r'^\s*(%%|%).*\n?', re.MULTILINE)
+
+def scrub_magics(cell): # Cell to format
+    "Processor to remove cell magics from exported code"
+    try: cfg = get_config()
+    except FileNotFoundError: return
+    if cell.cell_type != 'code': return
+    try: cell.source = _magics_pattern.sub('', cell.source)
+    except: pass
+```
+
+`scrub_magics` is a processor that scrubs the jupyter "magics" lines out of exported cells. This can be helpful when using tools like [sparkmagic](https://github.com/jupyter-incubator/sparkmagic) or just [Jupyter's builtin magics](https://ipython.readthedocs.io/en/stable/interactive/magics.html) in an nbdev project.
+
+Usage:  
+This behavior can be enabled by passing `scrub_magics` into the `--procs` flag of the `nbdev_export` command.
+- `nbdev_export --procs scrub_magics`
+- `nbdev_export --procs 'scrub_magics black_format'`
+
+Example:
+
+A cell like below could export the line `"hello nbdev"` into the `bar` module. And the `%%spark` magic line would be omitted.
+
+```python
+%%spark
+#|export bar
+"hello nbdev"
+```
+
+It will export as something similar to this:
+
+```python
+# %% ../path/to/01_bar.ipynb 1
+"hello nbdev"
+```
+
+```{python}
+_cell = read_nb('../../tests/export_procs.ipynb')['cells'][2]
+scrub_magics(_cell)
+test_eq(_cell.source, '''#|export bar
+"hello nbdev"''')
+```
+
+```{python}
+#|export
+import nbdev.export
+def optional_procs():
+    "An explicit list of processors that could be used by `nb_export`"
+    return L([p for p in nbdev.export.__all__
+              if p not in ["nb_export", "nb_export_cli", "ExportModuleProc", "optional_procs"]])
+```
+
+```{python}
+# every optional processor should be explicitly listed here
+test_eq(optional_procs(), ['black_format', 'scrub_magics'])
+```
+
+### `nb_export`
+
+```{python}
+#|export
+def nb_export(nbname:str,        # Filename of notebook 
+              lib_path:str=None, # Path to destination library.  If not in a nbdev project, defaults to current directory.
+              procs=None,        # Processors to use
+              name:str=None,     # Name of python script {name}.py to create.
+              mod_maker=ModuleMaker,
+              debug:bool=False,  # Debug mode
+              solo_nb:bool=False # Export single notebook outside of an nbdev project.
+             ):
+    "Create module(s) from notebook"
+    if lib_path is None: lib_path = get_config().lib_path if is_nbdev() else '.'
+    exp = ExportModuleProc()
+    nb = NBProcessor(nbname, [exp]+L(procs), debug=debug)
+    nb.process()
+    for mod,cells in exp.modules.items():
+        if first(1 for o in cells if o.cell_type=='code'):
+            all_cells = exp.in_all[mod]
+            nm = ifnone(name, getattr(exp, 'default_exp', None) if mod=='#' else mod)
+            if not nm:
+                warn(f"Notebook '{nbname}' uses `#|export` without `#|default_exp` cell.\n"
+                     "Note nbdev2 no longer supports nbdev1 syntax. Run `nbdev_migrate` to upgrade.\n"
+                     "See https://nbdev.fast.ai/getting_started.html for more information.")
+                return
+            mm = mod_maker(dest=lib_path, name=nm, nb_path=nbname, is_new=bool(name) or mod=='#', solo_nb=solo_nb)
+            mm.make(cells, all_cells, lib_path=lib_path)
+```
+
+Let's check we can import a test file:
+
+```{python}
+#|eval: false
+shutil.rmtree('tmp', ignore_errors=True)
+nb_export('../../tests/00_some.thing.ipynb', 'tmp')
+
+g = exec_new('import tmp.some.thing')
+test_eq(g['tmp'].some.thing.__all__, ['a'])
+test_eq(g['tmp'].some.thing.a, 1)
+```
+
+We'll also check that our 'everything' file exports correctly:
+
+```{python}
+#|eval: false
+nb_export(everything_fn, 'tmp')
+
+g = exec_new('import tmp.everything; from tmp.everything import *')
+_alls = L("a b d e m n o p q".split())
+for s in _alls.map("{}_y"): assert s in g, s
+for s in "c_y_nall _f_y_nall g_n h_n i_n j_n k_n l_n".split(): assert s not in g, s
+for s in _alls.map("{}_y") + ["c_y_nall", "_f_y_nall"]: assert hasattr(g['tmp'].everything,s), s
+```
+
+That notebook should also export one extra function to `tmp.some.thing`:
+
+```{python}
+#|eval: false
+del(sys.modules['tmp.some.thing']) # remove from module cache
+g = exec_new('import tmp.some.thing')
+test_eq(g['tmp'].some.thing.__all__, ['a','h_n'])
+test_eq(g['tmp'].some.thing.h_n(), None)
+```
+
+## Export -
+
+```{python}
+#|eval: false
+Path('../nbdev/export.py').unlink(missing_ok=True)
+nb_export('04_export.ipynb')
+
+g = exec_new('import nbdev.export')
+assert hasattr(g['nbdev'].export, 'nb_export')
+```
+
+```{python}
+
+```

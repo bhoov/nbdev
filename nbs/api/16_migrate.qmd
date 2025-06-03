@@ -1,0 +1,574 @@
+```{python}
+#|default_exp migrate
+```
+
+# migrate
+> Utilities for migrating to nbdev
+- order: 16
+
+```{python}
+#|export
+from nbdev.process import *
+from nbdev.frontmatter import *
+from nbdev.frontmatter import _fm2dict, _re_fm_md, _dict2fm, _insertfm
+from nbdev.processors import *
+from nbdev.config import get_config, read_nb
+from nbdev.sync import write_nb
+from nbdev.showdoc import show_doc
+from fastcore.all import *
+import shutil
+```
+
+#| hide
+
+### Add Alias Path To Avoid Broken Links - 
+
+When migrating from fastpages which was Jekyll based to Quarto, we want to construct aliases to mitigate broken links.  
+
+```{python}
+#|hide
+# These are just utilities for testing
+def _get_fm(path):
+    "A test utility that is used to get front matter"
+    nbp = NBProcessor(path, procs=FrontmatterProc)
+    nbp.process()
+    return nbp.nb.frontmatter_
+
+def _get_raw_fm(nb): 
+    return first(L(nb.cells).filter(lambda x: x.cell_type == 'raw')).source
+```
+
+```{python}
+#|export
+def _cat_slug(fmdict):
+    "Get the partial slug from the category front matter."
+    slug = '/'.join(fmdict.get('categories', ''))
+    return '/' + slug if slug else '' 
+```
+
+```{python}
+#|hide
+_fm1 = _get_fm('../../tests/2020-09-01-fastcore.ipynb')
+test_eq(_cat_slug(_fm1), '/fastcore/fastai')
+
+_fm2 = _get_fm('../../tests/2020-02-20-test.ipynb')
+test_eq(_cat_slug(_fm2), '/jupyter')
+```
+
+```{python}
+#|export
+def _file_slug(fname): 
+    "Get the partial slug from the filename."
+    p = Path(fname)
+    dt = '/'+p.name[:10].replace('-', '/')+'/'
+    return dt + p.stem[11:]    
+```
+
+```{python}
+#|hide
+test_eq(_file_slug('../../tests/2020-09-01-fastcore.ipynb'), 
+        '/2020/09/01/fastcore')
+```
+
+```{python}
+#|export
+def _replace_fm(d:dict, # dictionary you wish to conditionally change
+                k:str,  # key to check 
+                val:str,# value to check if d[k] == v
+                repl_dict:dict #dictionary that will be used as a replacement 
+               ):
+    "replace key `k` in dict `d` if d[k] == val with `repl_dict`"
+    if str(d.get(k, '')).lower().strip() == str(val.lower()).strip():
+        d.pop(k)
+        d = merge(d, repl_dict)
+    return d
+
+def _fp_fm(d):
+    "create aliases for fastpages front matter to match Quarto front matter."
+    d = _replace_fm(d, 'search_exclude', 'true', {'search':'false'})
+    d = _replace_fm(d, 'hide', 'true', {'draft': 'true'})
+    return d
+```
+
+```{python}
+#|export
+def _fp_image(d):
+    "Correct path of fastpages images to reference the local directory."
+    prefix = 'images/copied_from_nb/'
+    if d.get('image', '').startswith(prefix): d['image'] = d['image'].replace(prefix, '')
+    return d
+```
+
+```{python}
+#|export
+def _rm_quote(s): 
+    title = re.search('''"(.*?)"''', s)
+    return title.group(1) if title else s
+
+def _is_jekyll_post(path): return bool(re.search(r'^\d{4}-\d{2}-\d{2}-', Path(path).name))
+
+def _fp_convert(fm:dict, path:Path):
+    "Make fastpages frontmatter Quarto complaint and add redirects."
+    fs = _file_slug(path)
+    if _is_jekyll_post(path):
+        fm = compose(_fp_fm, _fp_image)(fm)
+        if 'permalink' in fm: fm['aliases'] = [f"{fm['permalink'].strip()}"]
+        else: fm['aliases'] = [f'{_cat_slug(fm) + fs}']
+        if not fm.get('date'): 
+            _,y,m,d,_ = fs.split('/')
+            fm['date'] = f'{y}-{m}-{d}'
+        
+    if fm.get('summary') and not fm.get('description'): fm['description'] = fm['summary']
+    if fm.get('tags') and not fm.get('categories'): 
+        if isinstance(fm['tags'], str): fm['categories'] = fm['tags'].split()
+        elif isinstance(fm['tags'], list): fm['categories'] = fm['tags']
+    for k in ['title', 'description']:
+        if k in fm: fm[k] = _rm_quote(fm[k])
+    if fm.get('comments'): fm.pop('comments') #true by itself is not a valid value for comments https://quarto.org/docs/output-formats/html-basics.html#commenting, and the default is true
+    return fm
+```
+
+```{python}
+#|hide
+_fm1 = _fp_convert(_fm1, '../../tests/2020-09-01-fastcore.ipynb')
+test_eq(_fm1['aliases'], ['/fastcore/'])
+test_eq(_fm1['image'], 'fastcore_imgs/td.png')
+
+assert 'hide' not in _fm1 and 'draft' in _fm1
+assert 'search_exclude' not in _fm1 and 'search' in _fm1
+assert 'comments' not in _fm1
+
+_fm2 = _fp_convert(_fm2, '../../tests/2020-02-20-test.ipynb')
+test_eq(_fm2['aliases'], ['/jupyter/2020/02/20/test'])
+```
+
+### Migrate notebooks
+
+```{python}
+#|export
+class MigrateProc(Processor):
+    "Migrate fastpages front matter in notebooks to a raw cell."
+    def begin(self): 
+        self.nb.frontmatter_ = _fp_convert(self.nb.frontmatter_, self.nb.path_)
+        if getattr(first(self.nb.cells), 'cell_type', None) == 'raw': del self.nb.cells[0]
+        _insertfm(self.nb, self.nb.frontmatter_)
+```
+
+Before you migrate the fastpages notebook, the front matter is specified in Markdown like this:
+
+```{python}
+_tst_nb = '../../tests/2020-09-01-fastcore.ipynb'
+print(read_nb(_tst_nb).cells[0].source)
+```
+
+After migrating the notebook, the front matter is moved to a raw cell, and some of the fields are converted to be compliant with Quarto.  Furthermore, aliases may be added in order to prevent broken links:
+
+```{python}
+nbp = NBProcessor('../../tests/2020-09-01-fastcore.ipynb', procs=[FrontmatterProc, MigrateProc])
+nbp.process()
+_fm1 = _get_raw_fm(nbp.nb)
+print(_fm1)
+```
+
+```{python}
+#|hide
+test_eq(_fm1, """---
+aliases:
+- /fastcore/
+author: <a href='https://twitter.com/HamelHusain'>Hamel Husain</a>
+badges: true
+categories:
+- fastcore
+- fastai
+date: '2020-09-01'
+description: A unique python library that extends the python programming language
+  and provides utilities that enhance productivity.
+draft: 'true'
+image: fastcore_imgs/td.png
+output-file: 2020-09-01-fastcore.html
+permalink: /fastcore/
+search: 'false'
+title: 'fastcore: An Underrated Python Library'
+toc: false
+
+---
+
+""")
+
+
+_res="""---
+aliases:
+- /jupyter/2020/02/20/test
+badges: true
+categories:
+- jupyter
+date: '2020-02-20'
+description: A tutorial of fastpages for Jupyter notebooks.
+image: images/chart-preview.png
+output-file: 2020-02-20-test.html
+title: Fastpages Notebook Blog Post
+toc: true
+
+---
+
+"""
+
+nbp = NBProcessor('../../tests/2020-02-20-test.ipynb', procs=[FrontmatterProc, MigrateProc])
+nbp.process()
+_fm2 = _get_raw_fm(nbp.nb)
+test_eq(_fm2, _res)
+```
+
+### Migrate Fastpages Markdown Front Matter
+
+```{python}
+#|export
+def fp_md_fm(path):
+    "Make fastpages front matter in markdown files quarto compliant."
+    p = Path(path)
+    md = p.read_text()
+    fm = _fm2dict(md, nb=False)
+    if fm:
+        fm = _fp_convert(fm, path)
+        return _re_fm_md.sub(_dict2fm(fm), md)
+    else: return md 
+```
+
+Here is what the front matter of a fastpages markdown post looks like before migration:
+
+```{python}
+#|eval: false
+print(run('head -n13 ../../tests/2020-01-14-test-markdown-post.md'))
+```
+
+And this is what it looks like after migration:
+
+```{python}
+_res = fp_md_fm('../../tests/2020-01-14-test-markdown-post.md')
+print(_res[:300])
+```
+
+```{python}
+#|hide
+assert """---
+aliases:
+- /markdown/2020/01/14/test-markdown-post
+categories:
+- markdown
+date: '2020-01-14'
+description: A minimal example of using markdown with fastpages.
+layout: post
+title: An Example Markdown Post
+toc: true
+
+---
+
+""" in _res
+```
+
+```{python}
+#hide
+_res = fp_md_fm('../../tests/2022-09-06-homeschooling.md')
+test_eq(_res,
+"""---
+aliases:
+- /2022/09/06/homeschooling
+author: Rachel Thomas
+categories:
+- advice
+- health
+date: '2022-09-06'
+description: You can permanently damage your back, neck, and wrists from working without
+  an ergonomic setup.  Learn how to create one for less at home.
+image: /images/ergonomic1-short.jpg
+summary: You can permanently damage your back, neck, and wrists from working without
+  an ergonomic setup.  Learn how to create one for less at home.
+tags: advice health
+title: 'Essential Work-From-Home Advice: Cheap and Easy Ergonomic Setups'
+
+---
+
+Lorem ipsum
+""")
+```
+
+## Convert nbdev v1 projects to nbdev v2
+
+### Directives
+
+nbdev v2 directives start with a `#|` whereas v1 directives were comments without a pipe `|`.
+
+```{python}
+#|export
+_alias = merge({k:'code-fold: true' for k in ['collapse', 'collapse_input', 'collapse_hide']}, 
+               {'collapse_show':'code-fold: show', 'hide_input': 'echo: false', 'hide': 'include: false', 'hide_output': 'output: false'})
+def _subv1(s): return _alias.get(s, s)
+```
+
+```{python}
+#|export
+def _re_v1():
+    d = ['default_exp', 'export', 'exports', 'exporti', 'hide', 'hide_input', 'collapse_show', 'collapse',
+         'collapse_hide', 'collapse_input', 'hide_output',  'default_cls_lvl']
+    d += L(get_config().tst_flags).filter()
+    d += [s.replace('_', '-') for s in d] # allow for hyphenated version of old directives
+    _tmp = '|'.join(list(set(d)))
+    return re.compile(fr"^[ \f\v\t]*?(#)\s*({_tmp})(?!\S)", re.MULTILINE)
+
+def _repl_directives(code_str): 
+    def _fmt(x): return f"#| {_subv1(x[2].replace('-', '_').strip())}"
+    return _re_v1().sub(_fmt, code_str)
+```
+
+```{python}
+_test_dir = """
+#default_exp
+ #export
+# collapse-show
+#collapse-hide
+#collapse
+# collapse_output
+not_dir='#export'
+# hide_input
+foo
+# hide
+"""
+test_eq(_repl_directives(_test_dir),
+"""
+#| default_exp
+#| export
+#| code-fold: show
+#| code-fold: true
+#| code-fold: true
+# collapse_output
+not_dir='#export'
+#| echo: false
+foo
+#| include: false
+""")
+```
+
+```{python}
+#|export
+def _repl_v1dir(cell):
+    "Replace nbdev v1 with v2 directives."
+    if cell.get('source') and cell.get('cell_type') == 'code':
+        ss = cell['source'].splitlines()
+        first_code = first_code_ln(ss, re_pattern=_re_v1())
+        if not first_code: first_code = len(ss)
+        if not ss: pass
+        else: cell['source'] = '\n'.join([_repl_directives(c) for c in ss[:first_code]] + ss[first_code:])
+```
+
+```{python}
+show_doc(_repl_v1dir)
+```
+
+for example, if any of the lines below are valid nbdev v1 directives, they replaced with a `#|`, but only before the first line of code:
+
+```{python}
+#|hide
+_code = _test_dir
+
+tst = {'cell_type': 'code', 'execution_count': 26,
+       'metadata': {'hide_input': True, 'meta': 23},
+       'outputs': [{'execution_count': 2,
+                    'data': {
+                        'application/vnd.google.colaboratory.intrinsic+json': {'type': 'string'},
+                        'plain/text': ['sample output',]
+                    }, 'output': 'super'}],
+       'source': _code}
+nb = {'metadata': {'kernelspec': 'some_spec', 'jekyll': 'some_meta', 'meta': 37}, 'cells': [tst]}
+
+for cell in nb['cells']: _repl_v1dir(cell) 
+
+test_eq(nb['cells'][0]['source'], 
+"""
+#| default_exp
+#| export
+#| code-fold: show
+#| code-fold: true
+#| code-fold: true
+# collapse_output
+not_dir='#export'
+# hide_input
+foo
+# hide""")
+```
+
+## Callouts
+
+In fastpages, there was a markdown shortuct for callouts for `Note`, `Tip`, `Important` and `Warning` with block quotes (these only worked in notebooks).  Since Quarto has its own [callout blocks](https://quarto.org/docs/authoring/callouts.html#callout-types) with markdown syntax, we do not implement these shortcuts in nbdev.  Instead, we offer a manual conversion utility for these callouts so that you can migrate from fastpages to Quarto.
+
+```{python}
+#|export
+_re_callout = re.compile(r'^>\s(Warning|Note|Important|Tip):(.*)', flags=re.MULTILINE)
+def _co(x): return ":::{.callout-"+x[1].lower()+"}\n\n" + f"{x[2].strip()}\n\n" + ":::"
+def _convert_callout(s): 
+    "Convert nbdev v1 to v2 callouts."
+    return _re_callout.sub(_co, s)
+```
+
+```{python}
+show_doc(_convert_callout)
+```
+
+For example, the below markdown:
+
+```{python}
+_callouts="""
+## Boxes / Callouts
+
+> Warning: There will be no second warning!
+
+Other text
+
+> Important: Pay attention! It's important.
+
+> Tip: This is my tip.
+
+> Note: Take note of `this.`
+"""
+```
+
+Gets converted to:
+
+```{python}
+#| echo:false
+_c = _convert_callout(_callouts)
+assert '> Tip:' not in _c
+assert 'Other text' in _c
+print(_c[:156])
+```
+
+## Video Embeds
+
+In fastpages, you could embed videos with a simple markdown shortcut involving a block quote with the prefix `youtube:`, that looked like this
+
+`> youtube: https://youtu.be/XfoYk_Z5AkI`
+
+However, in Quarto you can use the [video extension](https://github.com/quarto-ext/video) to embed videos.
+
+```{python}
+#|export
+_re_video = re.compile(r'^>\syoutube:(.*)', flags=re.MULTILINE)
+def _v(x): return "{{< " + f"video {x[1].strip()}" + " >}}"
+def _convert_video(s):
+    "Replace nbdev v1 with v2 video embeds."
+    return _re_video.sub(_v, s)
+```
+
+```{python}
+show_doc(_convert_video)
+```
+
+```{python}
+_videos="""
+## Videos
+
+> youtube: https://youtu.be/XfoYk_Z5AkI
+"""
+```
+
+```{python}
+print(_convert_video(_videos))
+```
+
+```{python}
+#|export
+_shortcuts = compose(_convert_video, _convert_callout)
+
+def _repl_v1shortcuts(cell):
+    "Replace nbdev v1 with v2 callouts."
+    if cell.get('source') and cell.get('cell_type') == 'markdown':
+        cell['source'] = _shortcuts(cell['source'])
+```
+
+```{python}
+#|export
+def migrate_nb(path, overwrite=True):
+    "Migrate Notebooks from nbdev v1 and fastpages."
+    nbp = NBProcessor(path, procs=[FrontmatterProc, MigrateProc, _repl_v1shortcuts, _repl_v1dir], rm_directives=False)
+    nbp.process()
+    if overwrite: write_nb(nbp.nb, path)
+    return nbp.nb
+```
+
+```{python}
+#|export
+def migrate_md(path, overwrite=True):
+    "Migrate Markdown Files from fastpages."
+    txt = fp_md_fm(path)
+    if overwrite: path.write_text(txt)
+    return txt
+```
+
+```{python}
+#|export
+@call_parse
+def nbdev_migrate(
+    path:str=None, # A path or glob containing notebooks and markdown files to migrate
+    no_skip:bool=False, # Do not skip directories beginning with an underscore
+):
+    "Convert all markdown and notebook files in `path` from v1 to v2"
+    _skip_re = None if no_skip else '^[_.]'
+    if path is None: path = get_config().nbs_path
+    for f in globtastic(path, file_re='(.ipynb$)|(.md$)', skip_folder_re=_skip_re, func=Path):
+        try:
+            if f.name.endswith('.ipynb'): migrate_nb(f)
+            if f.name.endswith('.md'): migrate_md(f)
+        except Exception as e: raise Exception(f'Error in migrating file: {f}') from e
+```
+
+```{python}
+#|hide
+
+### Test Notebook Migration ####
+_orig =  Path('../../tests/2020-02-20-test.ipynb') # nbdev v1 notebook
+_tmp =  Path('../../tests/2020-02-20-test-COPY.ipynb') # A copy of this nb that will be migrated
+shutil.copy(_orig, _tmp)
+nbdev_migrate(_tmp)
+
+def _nb2str(p): return str(L(read_nb(p).cells).attrgot('source'))
+assert ':::{.callout-warning}' not in _nb2str(_orig) and ':::{.callout-warning}' in _nb2str(_tmp)
+assert '#| code-fold: true' not in _nb2str(_orig) and '#| code-fold: true' in _nb2str(_tmp)
+assert '#| single-value' not in _nb2str(_tmp)
+
+if _tmp.exists(): _tmp.unlink() # missing_ok not in python 3.7
+```
+
+```{python}
+#|hide
+
+### Test Markdown Migration #####
+_orig =  Path('../../tests/2020-01-14-test-markdown-post.md') # fastpages markdown
+_tmp =  Path('../../tests/2020-01-14-test-markdown-post-COPY.md') # A copy to be migrated
+shutil.copy(_orig, _tmp)
+nbdev_migrate(_tmp)
+
+assert _tmp.read_text().startswith("""---
+aliases:
+- /markdown/2020/01/14/test-markdown-post-COPY
+categories:
+- markdown
+date: '2020-01-14'
+description: A minimal example of using markdown with fastpages.
+layout: post
+title: An Example Markdown Post
+toc: true
+
+---""")
+
+if _tmp.exists(): _tmp.unlink() # missing_ok not in python 3.7
+```
+
+## Export -
+
+```{python}
+#|hide
+import nbdev; nbdev.nbdev_export()
+```
+
+```{python}
+
+```

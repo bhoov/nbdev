@@ -1,0 +1,83 @@
+# Modular nbdev
+
+> How to use nbdev's various tools separately
+- order: 9
+- skip_showdoc: true
+
+While `nbdev_new` gets you started with everything you need to create a delightful Python package, **you can also use each of nbdev's components listed below on their own**. You might find this useful if you're porting a large system over to nbdev, documenting an existing code base, or if you'd like to customize the nbdev workflow for your own project. Note that all of the commands below work without a `settings.ini` file unless otherwise noted.
+
+## Document existing code: `show_doc`
+
+nbdev allows you to document existing code, even code that is not written in nbdev! `nbdev.showdoc.show_doc` allows you to render beautiful API documentation in notebooks and on Quarto sites.  For example, you can render API documentation for `numpy.all` like this:  
+
+::: {.py-2 .px-3 .mb-4 fig-align="center" .border .rounded .shadow-sm}
+
+```{python}
+#|echo: true
+#|eval: false
+from nbdev.showdoc import show_doc
+from numpy import all
+show_doc(all)
+```
+
+:::
+
+
+::: {.callout-note}
+
+`show_doc` automatically parses docstrings that are written in the numpy style.  For more information [read here](../api/showdoc.ipynb#numpy-docstrings).
+
+:::
+
+## Testing notebooks: `nbdev_test`
+
+Testing notebooks can be very useful outside of nbdev, especially if you are documenting an existing code base and want to incorporate tests for your docs. The `nbdev_test` CLI utility allows you to accomplish this:
+
+You can test an individual notebook with the terminal command:
+
+```sh
+nbdev_test --path notebook.ipynb
+```
+
+...or a folder of notebooks:
+
+```sh
+nbdev_test --path tests/
+```
+
+## Export code to modules: `nb_export`
+
+You can export a notebook to a module with the Python function:
+
+```python
+nb_export('notebook.ipynb', 'pkg')
+```
+
+...provided the notebook specifies a `default_exp` directive at the top, and `export` directives above each cell to be exported. We recommend including this in a code cell at the bottom of your notebook for convenience.
+
+## Jupyter-git integration
+
+Jupyter and Git don't normally play well together, especially for things like merge conflicts.  We have outlined all of these problems, and our solutions in [this blog post](../blog/posts/2022-08-25-jupyter-git/index.qmd).  You can install our merge driver and hooks with the following command: 
+
+```bash
+nbdev_install_hooks
+```
+
+We describe what `nbdev_install_hooks` does in detail on [this page](git_friendly_jupyter.ipynb).
+
+You can also directly use any of its underlying commands, for example, to implement your own hooks or extensions:
+
+- `nbdev_clean`
+- `nbdev_fix`
+- `nbdev_merge`
+- `nbdev_trust`
+
+To configure your own hooks, Check out the [pre-commit hooks tutorial](/tutorials/pre_commit.ipynb).
+
+## Python packaging
+
+`nbdev.release`provides utlities for easy packaging on PyPI, conda, and GitHub. Check out the [`nbdev.release`](/api/release.html) docs for more information. Note that this functionality requires a settings.ini file.
+
+```{python}
+
+```
