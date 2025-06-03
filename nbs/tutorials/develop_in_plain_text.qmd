@@ -1,6 +1,8 @@
 # Develop in plain text
 > Avoid the overhead of developing in .ipynb notebooks while working in plain text.
 
+- order: 10
+
 Using [quarto](https://quarto.org/docs/get-started/hello/vscode.html) and its [VS code extension](https://marketplace.visualstudio.com/items?itemName=quarto.quarto), it is possible to use `.qmd` files instead of `.ipynb` files for a interactive, plain text library development experience using `nbdev`. That `.qmd` files are plain text comes with several advantages:
 
 1. 🤖 `.qmd` **seamlessly integrates with AI copilots** (e.g., Cursor) with no overhead of a special notebook extension
@@ -8,18 +10,13 @@ Using [quarto](https://quarto.org/docs/get-started/hello/vscode.html) and its [V
 3. 🪄 `.qmd` **works with your favorite editing style** (e.g., VIM)
 4. 🫧 `.qmd` **source files stay clean** during `nbdev`'s transpilation process. You don't need a special `nbdev_clean` step to remove cell metadata and outputs.
 
-All this while remaining fully interactive thanks to VSCode's [interactive window](https://code.visualstudio.com/docs/python/jupyter-support-py) (see [below](#example))
+All this while remaining fully interactive thanks to VSCode's [interactive window](https://code.visualstudio.com/docs/python/jupyter-support-py).
 
 Starting from version YYY, `nbdev` will automatically support both `.qmd` files and `.ipynb` files for authoring the main library code+docs+tests.
 
 :::{.callout-warning}
 Ensure that all files under your `nbs/` directory have distinct names. E.g., do not have both `00_core.ipynb` and `00_core.qmd`, as both of these will create the intermediate `_proc/00_core.ipynb`
 :::
-
-## Interactively develop in .qmd {#example}
-
-1. Install the [quarto VSCode extension](https://marketplace.visualstudio.com/items?itemName=quarto.quarto)
-2. Open a `.qmd` file in VSCode. 
 
 
 ## Helpful hotkeys
