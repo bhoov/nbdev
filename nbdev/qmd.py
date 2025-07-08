@@ -298,14 +298,16 @@ def qmd_to_ipynb(
         
         for filename in files:
             source_file_path = current_source_dir / filename
+            suffix = source_file_path.suffix
             
-            if source_file_path.suffix == ".qmd":
+            if suffix in [".qmd", ".ipynb"]:
                 # Convert .qmd to .ipynb
-                dest_filename = source_file_path.stem + ".ipynb"
+                if suffix == ".qmd": dest_filename = source_file_path.stem + ".ipynb"
+                else: dest_filename = source_file_path.name
                 dest_file_path = current_dest_dir / dest_filename
                 
                 try:
-                    nb = read_qmd(source_file_path)
+                    nb = read_nb_or_qmd(source_file_path)
                     write_nb(nb, dest_file_path)
                     print(f"Converted: {source_file_path} -> {dest_file_path}")
                 except Exception as e:
