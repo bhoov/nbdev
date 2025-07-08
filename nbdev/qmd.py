@@ -17,7 +17,7 @@ from fastcore.meta import delegates
 
 # %% auto 0
 __all__ = ['read_qmd', 'read_nb_or_qmd', 'write_qmd', 'write_nb_or_qmd', 'meta', 'div', 'img', 'btn', 'tbl_row', 'tbl_sep',
-           'ipynb_to_qmd']
+           'ipynb_to_qmd', 'qmd_to_ipynb']
 
 # %% ../nbs/api/15_qmd.ipynb
 def _qmd_to_raw_cell(source:str, cell_type:str, qmd_metadata=None):
@@ -272,3 +272,47 @@ def ipynb_to_qmd(
     if errors_encountered > 0:
         print(f"Errors encountered: {errors_encountered}")
     print(f"Output located in: {dest_dir.resolve()}") 
+
+# %% ../nbs/api/15_qmd.ipynb
+@call_parse
+def qmd_to_ipynb(
+    source_folder: str,  # Source folder containing .qmd files
+    dest_folder: str,  # Destination folder for .ipynb files and copied items
+    copy_other_files: bool_arg = True  # Whether to copy other files directly
+):
+    """Convert .qmd files from source_folder to .ipynb files in dest_folder"""
+    source_dir = Path(source_folder)
+    dest_dir = Path(dest_folder)
+
+    if not source_dir.is_dir():
+        print(f"Error: Source directory '{source_dir.resolve()}' does not exist.")
+        return
+
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    for root, _, files in os.walk(source_dir):
+        current_source_dir = Path(root)
+        relative_subdir_path = current_source_dir.relative_to(source_dir)
+        current_dest_dir = dest_dir / relative_subdir_path
+        current_dest_dir.mkdir(parents=True, exist_ok=True)
+        
+        for filename in files:
+            source_file_path = current_source_dir / filename
+            
+            if source_file_path.suffix == ".qmd":
+                # Convert .qmd to .ipynb
+                dest_filename = source_file_path.stem + ".ipynb"
+                dest_file_path = current_dest_dir / dest_filename
+                
+                try:
+                    nb = read_qmd(source_file_path)
+                    write_nb(nb, dest_file_path)
+                    print(f"Converted: {source_file_path} -> {dest_file_path}")
+                except Exception as e:
+                    print(f"Error converting {source_file_path}: {e}")
+            else:
+                # Copy other files directly
+                if copy_other_files:
+                    dest_file_path = current_dest_dir / filename
+                    shutil.copy2(source_file_path, dest_file_path)
+
