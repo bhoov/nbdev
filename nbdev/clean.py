@@ -69,7 +69,7 @@ def _clean_cell_output(cell, clean_ids):
             if k.startswith('text') and clean_ids: data[k] = _clean_cell_output_id(data[k])
             if k.startswith('image') and "svg" not in k: data[k] = data[k].rstrip()
         if 'text' in o and clean_ids: o['text'] = _clean_cell_output_id(o['text'])
-        o.get('metadata', {}).pop('tags', None)
+#         o.get('metadata', {}).pop('tags', None)
 
 # %% ../nbs/api/11_clean.ipynb
 def _clean_cell(cell, clear_all, allowed_metadata_keys, clean_ids):

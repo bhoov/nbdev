@@ -2,6 +2,14 @@
 
 <!-- do not remove -->
 
+## 2.4.5
+
+### New Features
+
+- Ignore failures to get mod index ([#1528](https://github.com/AnswerDotAI/nbdev/issues/1528))
+- Keep tags ([#1527](https://github.com/AnswerDotAI/nbdev/issues/1527))
+
+
 ## 2.4.4
 
 ### Bugs Squashed
