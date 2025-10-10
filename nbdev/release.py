@@ -12,6 +12,7 @@ from fastcore.all import *
 from ghapi.core import *
 
 from datetime import datetime
+from packaging.version import Version
 import shutil,subprocess
 
 from .doclinks import *
@@ -71,8 +72,11 @@ def changelog(self:Release,
     "Create the CHANGELOG.md file, or return the proposed text if `debug` is `True`"
     if not self.changefile.exists(): self.changefile.write_text("# Release notes\n\n<!-- do not remove -->\n")
     marker = '<!-- do not remove -->\n'
-    try: self.commit_date = self.gh.repos.get_latest_release().published_at
-    except HTTP404NotFoundError: self.commit_date = '2000-01-01T00:00:004Z'
+    try: self.commit_date = (lr:=self.gh.repos.get_latest_release()).published_at
+    except HTTP404NotFoundError: lr,self.commit_date = None,'2000-01-01T00:00:004Z'
+    if lr and (Version(self.cfg.version) <= Version(lr.tag_name)): 
+        print(f'Error: Version bump required: expected: >{lr.tag_name}, got: {self.cfg.version}.')
+        raise SystemExit(1)
     res = f"\n## {self.cfg.version}\n"
     issues = self._issue_groups()
     res += '\n'.join(_issues_txt(*o) for o in zip(issues, self.groups.values()))
