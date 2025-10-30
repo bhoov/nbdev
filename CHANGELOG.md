@@ -2,6 +2,13 @@
 
 <!-- do not remove -->
 
+## 2.4.6
+
+### New Features
+
+- check version before changelog ([#1535](https://github.com/AnswerDotAI/nbdev/pull/1535)), thanks to [@RensDimmendaal](https://github.com/RensDimmendaal)
+
+
 ## 2.4.5
 
 ### New Features
